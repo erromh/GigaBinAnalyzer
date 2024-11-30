@@ -1,0 +1,15 @@
+/build/
+*.o
+*.a
+*.so
+*.out
+*.exe
+
+.DS_Store
+Thumbs.db
+
+.vscode/
+
+*.depend
+*.d
+
