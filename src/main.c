@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h> 
+#include <unistd.h> 
+#include <sys/types.h> 
+#include <sys/stat.h>  
 
 typedef struct StatData
 {
@@ -12,144 +16,82 @@ typedef struct StatData
 
 } StatData;
 
-void storeDump(char* pathToFile)
-{
-    FILE *file = fopen(pathToFile, "rb");
-
-    if (file)
-    {
-        printf("File %s already exists.\n", pathToFile);
-        fclose(file);
-    }
-    else
-    {
-        printf("No such file here '%s', creating new.\n", pathToFile);
+void storeDump(char* pathToFile) {
+    int fd = open(pathToFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd == -1) {
+        perror("Ошибка открытия файла");
+        return;
     }
 
     int arrayCount;
-    printf("Введите колличество массивов структур: ");
-    scanf("%i", arrayCount);
-
-    if (arrayCount == 0)
-    {
-        printf("Невозможно создать массивы с нулевым количеством.\n");
+    printf("Введите количество массивов структур: ");
+    if (scanf("%i", &arrayCount) != 1 || arrayCount <= 0) {
+        printf("Некорректное количество массивов.\n");
+        close(fd);
         return;
     }
-    
-    // Выделяем память для хранения указателей на массивы
-    StatData** arraysList = malloc(arrayCount * sizeof(StatData*));
-    int* arraysSize = malloc(arrayCount * sizeof(StatData));
 
-    if (!arraysList || !arraysSize)
-    {
-        perror("Ошибка выделения памяти");
-
-        free(arraysList);
-        free(arraysSize);
-
-        return;
-    }
-    
-    for (size_t i = 0; i < arrayCount; i++)
-    {
-        printf("Введите колличество структур в масииве %zu: ", i + 1);
-        scanf("%i", arraysSize[i]);
-
-        if (arraysSize[i] == 0)
-        {
-            printf("Пропускаем создание массива с нулевым размером\n");
-            arraysList[i] = NULL;
+    for (size_t i = 0; i < arrayCount; i++) {
+        int arraySize;
+        printf("Введите количество структур в массиве %zu: ", i + 1);
+        if (scanf("%i", &arraySize) != 1 || arraySize <= 0 || arraySize > 10000) {
+            printf("Некорректное количество структур. Пропускаем массив.\n");
             continue;
         }
-        
-        arraysList[i] = malloc(arraysSize[i] * sizeof(StatData));
-        
-        if (!arraysList[i])
-        {
-            perror("Ошибка выделения памяти для массива структур\n");
 
-            for (size_t j = 0; j < i; j++)
-            {
-                free(arraysList[i]);
-            }
-
-            free(arraysList);
-            free(arraysSize);
-
-            return;
+        StatData* currentArray = malloc(arraySize * sizeof(StatData));
+        if (!currentArray) {
+            perror("Ошибка выделения памяти");
+            break;
         }
-        
-        for (size_t j = 0; j < arraysSize[i]; j++)
-        {
+
+        for (size_t j = 0; j < arraySize; j++) {
             printf("Enter data %zu:\n", i + 1);
             
             printf("  ID: ");
-            scanf("%ld", &arraysList[i][j].id);
+            scanf("%ld", &currentArray[i].id);
             
             printf("  Count: ");
-            scanf("%d", &arraysList[i][j].count);
+            scanf("%d", &currentArray[i].count);
             
             printf("  Cost: ");
-            scanf("%f", &arraysList[i][j].cost);
+            scanf("%f", &currentArray[i].cost);
             
             printf("  Primary (0/1): ");
             unsigned int primary_tmp;
             scanf("%u", &primary_tmp);
-            arraysList[i][j].primary = primary_tmp;
+            currentArray[i].primary = primary_tmp;
 
             printf("  Mode (0-7): ");
             unsigned int mode_tmp;
             scanf("%u", &mode_tmp);
-            arraysList[i][j].mode = mode_tmp;
+            currentArray[i].mode = mode_tmp;
 
             printf("\n");
         }
-    }
-        
-    // Открытие файла в режиме "wb" для записи
-    file = fopen(pathToFile, "wb");
-    if (file == NULL)
-    {
-        perror("Ошибка открытия файла для записи");
 
-        for (size_t j = 0; j < arrayCount; j++)
-        {
-            free(arraysList[j]); 
+        // Запись размера массива
+        if (write(fd, &arraySize, sizeof(int)) != sizeof(int)) {
+            perror("Ошибка записи размера массива");
+            free(currentArray);
+            break;
         }
-        
-        free(arraysList);
-        free(arraysSize);
 
-        return;
-    }
-
-    // Запись массива в файл
-    for (size_t j = 0; j < arrayCount; j++)
-    {
-        if (arraysList[j] && arraysSize[j] > 0)
-        {
-            // Сначала записываем размер массива
-            if (fwrite(&arraysSize[j], sizeof(size_t), 1, file) != 1 ||  
-                fwrite(arraysList[j], sizeof(StatData), arraysSize[j], file) != arraysList[j]) 
-            {
-                perror("Ошибка записи в файл");
-                break;
-            }   
+        // Запись массива структур
+        if (write(fd, currentArray, arraySize * sizeof(StatData)) != arraySize * sizeof(StatData)) {
+            perror("Ошибка записи массива структур");
+            free(currentArray);
+            break;
         }
-    }
-    
-    printf("Данные успешно записаны в файл\n");
 
-    for (size_t j = 0; j < arrayCount; j++)
-    {
-        free(arraysList[j]);
+        free(currentArray);
     }
-    free(arraysList);
-    free(arraysSize);
-    
-    // Закрытие файла
-    fclose(file);
+
+    if (close(fd) == -1) {
+        perror("Ошибка закрытия файла");
+    }
 }
+
 
 void loadDump(char* pathToFile)
 {
