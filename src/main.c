@@ -26,46 +26,132 @@ void storeDump(char* pathToFile)
         printf("No such file here '%s', creating new.\n", pathToFile);
     }
 
-    // Массив данных
-    StatData statData[2];
+    int arrayCount;
+    printf("Введите колличество массивов структур: ");
+    scanf("%i", arrayCount);
 
-    statData[0].id = 4;
-    statData[0].count = 13;
-    statData[0].cost = 44;
-    statData[0].primary = 0;
-    statData[0].mode = 3;
+    if (arrayCount == 0)
+    {
+        printf("Невозможно создать массивы с нулевым количеством.\n");
+        return;
+    }
+    
+    // Выделяем память для хранения указателей на массивы
+    StatData** arraysList = malloc(arrayCount * sizeof(StatData*));
+    int* arraysSize = malloc(arrayCount * sizeof(StatData));
 
-    statData[1].id = 65;
-    statData[1].count = 90;
-    statData[1].cost = 45;
-    statData[1].primary = 1;
-    statData[1].mode = 4;
+    if (!arraysList || !arraysSize)
+    {
+        perror("Ошибка выделения памяти");
 
-    int size = sizeof(statData) / sizeof(statData[0]);
+        free(arraysList);
+        free(arraysSize);
 
+        return;
+    }
+    
+    for (size_t i = 0; i < arrayCount; i++)
+    {
+        printf("Введите колличество структур в масииве %zu: ", i + 1);
+        scanf("%i", arraysSize[i]);
+
+        if (arraysSize[i] == 0)
+        {
+            printf("Пропускаем создание массива с нулевым размером\n");
+            arraysList[i] = NULL;
+            continue;
+        }
+        
+        arraysList[i] = malloc(arraysSize[i] * sizeof(StatData));
+        
+        if (!arraysList[i])
+        {
+            perror("Ошибка выделения памяти для массива структур\n");
+
+            for (size_t j = 0; j < i; j++)
+            {
+                free(arraysList[i]);
+            }
+
+            free(arraysList);
+            free(arraysSize);
+
+            return;
+        }
+        
+        for (size_t j = 0; j < arraysSize[i]; j++)
+        {
+            printf("Enter data %zu:\n", i + 1);
+            
+            printf("  ID: ");
+            scanf("%ld", &arraysList[i][j].id);
+            
+            printf("  Count: ");
+            scanf("%d", &arraysList[i][j].count);
+            
+            printf("  Cost: ");
+            scanf("%f", &arraysList[i][j].cost);
+            
+            printf("  Primary (0/1): ");
+            unsigned int primary_tmp;
+            scanf("%u", &primary_tmp);
+            arraysList[i][j].primary = primary_tmp;
+
+            printf("  Mode (0-7): ");
+            unsigned int mode_tmp;
+            scanf("%u", &mode_tmp);
+            arraysList[i][j].mode = mode_tmp;
+
+            printf("\n");
+        }
+    }
+        
     // Открытие файла в режиме "wb" для записи
     file = fopen(pathToFile, "wb");
     if (file == NULL)
     {
         perror("Ошибка открытия файла для записи");
+
+        for (size_t j = 0; j < arrayCount; j++)
+        {
+            free(arraysList[j]); 
+        }
+        
+        free(arraysList);
+        free(arraysSize);
+
         return;
     }
 
-    // Запись данных в файл
-    if (fwrite(statData, sizeof(StatData), size, file) != size)
+    // Запись массива в файл
+    for (size_t j = 0; j < arrayCount; j++)
     {
-        perror("Ошибка записи в файл");
+        if (arraysList[j] && arraysSize[j] > 0)
+        {
+            // Сначала записываем размер массива
+            if (fwrite(&arraysSize[j], sizeof(size_t), 1, file) != 1 ||  
+                fwrite(arraysList[j], sizeof(StatData), arraysSize[j], file) != arraysList[j]) 
+            {
+                perror("Ошибка записи в файл");
+                break;
+            }   
+        }
     }
-    else
-    {
-        printf("Success\n");
-    }
+    
+    printf("Данные успешно записаны в файл\n");
 
+    for (size_t j = 0; j < arrayCount; j++)
+    {
+        free(arraysList[j]);
+    }
+    free(arraysList);
+    free(arraysSize);
+    
     // Закрытие файла
     fclose(file);
 }
 
-void LoadDump(char* pathToFile)
+void loadDump(char* pathToFile)
 {
     FILE *file = fopen(pathToFile, "rb");
 
@@ -111,10 +197,15 @@ void LoadDump(char* pathToFile)
     free(statData);
 }
 
+void sortDump()
+{
+
+}
+
 int main()
 {
     storeDump("test.txt");
-    LoadDump("test.txt");
+    loadDump("test.txt");
 
     return 0;
 }
