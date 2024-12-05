@@ -1,20 +1,58 @@
 #include "StoreDump.h"
 
+// Функция безопасного ввода целого числа
+int safeInputInt(const char* prompt)
+{
+    int value;
+    char buffer[64];
+    while (1)
+    {
+        printf("%s", prompt);
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+        {
+            printf("Ошибка чтения ввода. Попробуйте снова.\n");
+            continue;
+        }
+        if (sscanf(buffer, "%d", &value) == 1)
+        {
+            return value;
+        }
+        printf("Некорректный ввод. Введите целое число.\n");
+    }
+}
+
+// Функция безопасного ввода числа с плавающей точкой
+float safeInputFloat(const char* prompt)
+{
+    float value;
+    char buffer[64];
+    while (1)
+    {
+        printf("%s", prompt);
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+        {
+            printf("Ошибка чтения ввода. Попробуйте снова.\n");
+            continue;
+        }
+        if (sscanf(buffer, "%f", &value) == 1)
+        {
+            return value;
+        }
+        printf("Некорректный ввод. Введите число с плавающей точкой.\n");
+    }
+}
+
 void storeDump(const char* pathToFile)
 {
-    int arrayCount;
-
-    printf("Введите количество массивов структур: ");
-    
-    if (scanf("%d", &arrayCount) != 1 || arrayCount <= 0) 
+    int arrayCount = safeInputInt("Введите количество массивов структур: ");
+    if (arrayCount <= 0)
     {
-        printf("Некорректное количество массивов.\n");
+        printf("Количество массивов должно быть положительным.\n");
         return;
     }
 
     FILE *file = fopen(pathToFile, "wb");
-    
-    if (!file) 
+    if (!file)
     {
         perror("Ошибка открытия файла для записи");
         return;
@@ -22,48 +60,37 @@ void storeDump(const char* pathToFile)
 
     fwrite(&arrayCount, sizeof(int), 1, file); // Сохраняем количество массивов
 
-    for (int i = 0; i < arrayCount; i++) 
+    for (int i = 0; i < arrayCount; i++)
     {
-        int arraySize;
-
-        printf("Введите количество структур в массиве %d: ", i + 1);
-        
-        if (scanf("%d", &arraySize) != 1 || arraySize <= 0) 
+        int arraySize = safeInputInt("Введите количество структур в массиве: ");
+        if (arraySize <= 0)
         {
-            printf("Некорректное количество структур. Пропускаем массив.\n");
+            printf("Количество структур в массиве должно быть положительным. Пропускаем массив.\n");
             continue;
         }
 
         fwrite(&arraySize, sizeof(int), 1, file); // Сохраняем размер массива
 
         StatData *array = malloc(arraySize * sizeof(StatData));
-        
-        if (!array) 
+        if (!array)
         {
             perror("Ошибка выделения памяти");
             fclose(file);
             return;
         }
 
-        for (int j = 0; j < arraySize; j++) 
+        for (int j = 0; j < arraySize; j++)
         {
             printf("Введите данные для структуры %d:\n", j + 1);
-            printf("  ID: ");
-            scanf("%ld", &array[j].id);
-            printf("  Count: ");
-            scanf("%d", &array[j].count);
-            printf("  Cost: ");
-            scanf("%f", &array[j].cost);
-            
-            printf("  Primary (0/1): ");
-            unsigned int primary_tmp;
-            scanf("%u", &primary_tmp);
-            array[i].primary = primary_tmp;
+            array[j].id = safeInputInt("  ID: ");
+            array[j].count = safeInputInt("  Count: ");
+            array[j].cost = safeInputFloat("  Cost: ");
 
-            printf("  Mode (0-7): ");
-            unsigned int mode_tmp;
-            scanf("%u", &mode_tmp);
-            array[i].mode = mode_tmp;
+            unsigned int primary_tmp = safeInputInt("  Primary (0/1): ");
+            array[j].primary = primary_tmp ? 1 : 0;
+
+            unsigned int mode_tmp = safeInputInt("  Mode (0-7): ");
+            array[j].mode = (mode_tmp <= 7) ? mode_tmp : 7;
 
             printf("\n");
         }
@@ -73,5 +100,5 @@ void storeDump(const char* pathToFile)
     }
 
     fclose(file);
-    printf("Данные успешно записаны в файл.\n");
+    printf("Данные успешно записаны в файл: %s\n", pathToFile);
 }

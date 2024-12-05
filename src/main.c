@@ -4,6 +4,27 @@
 #include "SortDump.h"
 #include "JoinDump.h"
 
+int safeMenuInput()
+{
+    int value;
+    char buffer[64];
+    while (1)
+    {
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+        {
+            printf("Ошибка чтения ввода. Попробуйте снова.\n");
+            continue;
+        }
+
+        if (sscanf(buffer, "%d", &value) == 1)
+        {
+            return value;
+        }
+        printf("\nНекорректный ввод. Введите целое число.\n-> ");
+    }
+}
+
+
 void showMenu() 
 {
     printf("\n=== Меню ===\n");
@@ -19,12 +40,12 @@ int main()
 {
     char fileName[] = "data.bin";
     
-    int option = -1;
-
     while (1) 
     {
         showMenu();
-        scanf("%d", &option);
+        
+        int option = safeMenuInput();
+        // scanf("%d", &option);
 
         switch (option) 
         {
